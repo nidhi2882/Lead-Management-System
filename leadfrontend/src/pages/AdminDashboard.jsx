@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import api from "../api/leadApi";
 import { useAuth } from "../context/AuthContext";
+import Layout from "../components/Layout";
 import {
   Users,
   Plus,
@@ -14,7 +15,6 @@ import {
   Send,
   Eye,
 } from "lucide-react";
-
 const AdminDashboard = () => {
   const { user } = useAuth();
 
@@ -299,21 +299,19 @@ const AdminDashboard = () => {
 };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e2937] to-[#0f172a] text-white">
-      {/* Header */}
-      <div className="bg-[#1e2937]/50 border-b border-gray-800/50 sticky top-0 z-40 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-            <p className="text-gray-400 text-sm mt-1">Welcome, {user?.name || "Admin"}</p>
+    <Layout>
+      {/* Page Title & Subtitle Banner */}
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-extrabold text-white tracking-tight my-0">Admin Dashboard</h1>
+            <span className="px-3 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 text-xs font-bold rounded-full">
+              System Control
+            </span>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 rounded-xl transition"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
+          <p className="text-gray-400 text-sm mt-1">
+            Welcome back, <span className="text-white font-medium">{user?.name || "Admin"}</span>. Monitor lead flow and manage sales assignments.
+          </p>
         </div>
       </div>
 
@@ -323,13 +321,13 @@ const AdminDashboard = () => {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -10 }}
-          className="bg-green-500/10 border border-green-500/50 text-green-400 px-6 py-3 mx-6 mt-4 rounded-2xl"
+          className="bg-green-500/10 border border-green-500/50 text-green-400 px-6 py-3 mb-6 rounded-2xl"
         >
           ✓ {success}
         </motion.div>
       )}
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div>
         {/* Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
           {[
@@ -920,7 +918,7 @@ const AdminDashboard = () => {
           </motion.div>
         </div>
       )}
-    </div>
+    </Layout>
   );
 };
 

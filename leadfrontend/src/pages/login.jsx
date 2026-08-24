@@ -1,249 +1,196 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import api from "../api/leadApi";
 import { useAuth } from "../context/AuthContext";
 import { motion } from "framer-motion";
+import Layout from "../components/Layout";
+import { Lock, Mail, ArrowRight, ShieldCheck, CheckCircle2 } from "lucide-react";
 
 const Login = () => {
-  const [step, setStep] = useState("roleSelect"); // roleSelect -> credentials -> loading
-  const [selectedRole, setSelectedRole] = useState(null);
-  const [email, setEmail] = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+
+  // Pre-fill email if passed from Registration page
+  const registeredEmail = location.state?.registeredEmail || "";
+  const registrationSuccess = location.state?.registered || false;
+
+  const [email, setEmail] = useState(registeredEmail);
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const navigate = useNavigate();
-  const { login } = useAuth();
-
-  const handleRoleSelect = (role) => {
-    setSelectedRole(role);
-    setStep("credentials");
-    setError("");
-    setEmail("");
-    setPassword("");
-  };
-
-  const handleBackToRole = () => {
-    setStep("roleSelect");
-    setSelectedRole(null);
-    setError("");
-  };
-
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!email.trim() || !password) {
+      setError("Please enter both email and password.");
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const res = await api.post("/auth/login", { email, password });
+      // ✅ Direct backend API call to Spring Boot /auth/login
+      const res = await api.post("/auth/login", {
+        email: email.trim(),
+        password: password,
+      });
 
-      console.log("LOGIN RESPONSE:", res.data);
+      console.log("✅ LOGIN SUCCESS:", res.data);
 
       const token = res.data.token;
       const rawRole = res.data.role || "ROLE_SALES";
-      const role = rawRole.replace("ROLE_", "");
+      const role = rawRole.replace("ROLE_", "").toUpperCase();
 
-      // Validate role matches selection
-      if (selectedRole === "admin" && role !== "ADMIN") {
-        throw new Error("This account is not an admin account");
-      }
-      if (selectedRole === "sales" && role !== "SALES") {
-        throw new Error("This account is not a sales account");
-      }
-
-      // Use backend user data
-      const user = {
+      const userObj = {
         id: res.data.id,
         email: res.data.email || email,
         name: res.data.name || email.split("@")[0],
         role: role,
       };
 
-      // Context login
-      login(token, user);
-
-      // localStorage backup
+      // Set auth context & localStorage tokens
+      login(token, userObj);
       localStorage.setItem("token", token);
       localStorage.setItem("role", role);
-      localStorage.setItem("userId", user.id);
-      localStorage.setItem("userEmail", user.email);
-      localStorage.setItem("userName", user.name);
+      localStorage.setItem("userId", userObj.id);
+      localStorage.setItem("userEmail", userObj.email);
+      localStorage.setItem("userName", userObj.name);
 
-      // Route based on role
+      // Route automatically based on user's actual role returned by backend
       if (role === "ADMIN") {
         navigate("/dashboard/admin");
-      } else if (role === "SALES") {
-        navigate("/dashboard/sales");
       } else {
-        navigate("/dashboard");
+        navigate("/dashboard/sales");
       }
     } catch (err) {
-      console.error("Login error:", err);
-      setError(
-        err.response?.data?.message ||
-        err.message ||
-        "Invalid email or password. Please try again."
-      );
+      console.error("❌ Login error:", err);
+      const serverMessage = err.response?.data?.message || err.message;
+      if (serverMessage && serverMessage !== "Network Error") {
+        setError(serverMessage);
+      } else {
+        setError("Invalid email or password. Please verify your credentials.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e2937] to-[#0f172a] flex items-center justify-center p-4">
-      {/* Role Selection Step */}
-      {step === "roleSelect" && (
+    <Layout>
+      <div className="py-12 flex items-center justify-center min-h-[75vh]">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="w-full max-w-2xl"
+          transition={{ duration: 0.3 }}
+          className="w-full max-w-md bg-[#131b2e]/90 border border-gray-800/80 rounded-3xl p-8 shadow-2xl backdrop-blur-xl relative overflow-hidden"
         >
-          <div className="text-center mb-12">
-            <h1 className="text-5xl font-bold text-white mb-2">CRM</h1>
-            <p className="text-gray-400">Professional Lead Management System</p>
-          </div>
+          {/* Subtle Ambient Top Glow */}
+          <div className="absolute -top-16 -left-16 w-32 h-32 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Admin Card */}
-            <motion.div
-              whileHover={{ scale: 1.02, y: -5 }}
-              onClick={() => handleRoleSelect("admin")}
-              className="cursor-pointer group"
-            >
-              <div className="bg-gradient-to-br from-purple-900/40 to-indigo-900/40 border-2 border-purple-500/50 hover:border-purple-400 rounded-3xl p-8 transition-all duration-300 h-full flex flex-col justify-center items-center text-center group-hover:shadow-2xl group-hover:shadow-purple-500/20">
-                <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">👨‍💼</div>
-                <h2 className="text-2xl font-bold text-white mb-2">Admin</h2>
-                <p className="text-gray-300 text-sm leading-relaxed">
-                  Full control over leads, sales team, and assignments
-                </p>
-                <ul className="text-left mt-4 space-y-2 text-xs text-gray-400">
-                  <li>✓ Create & manage leads</li>
-                  <li>✓ Assign leads to team</li>
-                  <li>✓ Create new sales users</li>
-                  <li>✓ View all reports</li>
-                </ul>
-              </div>
-            </motion.div>
-
-            {/* Sales Person Card */}
-            <motion.div
-              whileHover={{ scale: 1.02, y: -5 }}
-              onClick={() => handleRoleSelect("sales")}
-              className="cursor-pointer group"
-            >
-              <div className="bg-gradient-to-br from-blue-900/40 to-cyan-900/40 border-2 border-blue-500/50 hover:border-blue-400 rounded-3xl p-8 transition-all duration-300 h-full flex flex-col justify-center items-center text-center group-hover:shadow-2xl group-hover:shadow-blue-500/20">
-                <div className="text-6xl mb-4 group-hover:scale-110 transition-transform">📞</div>
-                <h2 className="text-2xl font-bold text-white mb-2">Sales Executive</h2>
-                <p className="text-gray-300 text-sm leading-relaxed">
-                  Manage your assigned leads and close deals
-                </p>
-                <ul className="text-left mt-4 space-y-2 text-xs text-gray-400">
-                  <li>✓ View assigned leads</li>
-                  <li>✓ Add follow-ups</li>
-                  <li>✓ Update lead status</li>
-                  <li>✓ Track conversations</li>
-                </ul>
-              </div>
-            </motion.div>
-          </div>
-
-          <div className="mt-8 text-center">
-            <p className="text-gray-400 text-sm">
-              Don't have an account?{" "}
-              <span
-                onClick={() => navigate("/register")}
-                className="text-purple-400 cursor-pointer hover:text-purple-300 font-medium"
-              >
-                Register here
-              </span>
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-purple-600/20 border border-purple-500/30 text-purple-400 mb-3 shadow-inner">
+              <ShieldCheck size={24} />
+            </div>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight my-0">
+              Welcome Back
+            </h1>
+            <p className="text-xs text-gray-400 mt-1">
+              Sign in to access your LeadSphere workspace
             </p>
           </div>
-        </motion.div>
-      )}
 
-      {/* Credentials Step */}
-      {step === "credentials" && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className="w-full max-w-md"
-        >
-          <div className="bg-[#1e2937] rounded-3xl p-10 shadow-2xl border border-gray-800">
-            <button
-              onClick={handleBackToRole}
-              className="text-gray-400 hover:text-white mb-6 flex items-center gap-2 transition"
+          {/* Registration Success Banner */}
+          {registrationSuccess && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3.5 rounded-2xl mb-6 text-xs flex items-center gap-2.5"
             >
-              ← Back
-            </button>
+              <CheckCircle2 size={16} className="shrink-0" />
+              <span>Account created successfully! Please sign in below.</span>
+            </motion.div>
+          )}
 
-            <h2 className="text-3xl font-bold text-white mb-2">
-              {selectedRole === "admin" ? "Admin Login" : "Sales Executive Login"}
-            </h2>
-            <p className="text-gray-400 mb-8">Enter your credentials to continue</p>
+          {/* Error Banner */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-red-500/10 border border-red-500/30 text-red-400 p-3.5 rounded-2xl mb-6 text-xs text-center"
+            >
+              {error}
+            </motion.div>
+          )}
 
-            {error && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="bg-red-500/10 border border-red-500 text-red-400 p-4 rounded-2xl mb-6"
-              >
-                {error}
-              </motion.div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-5">
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Email Address</label>
+          {/* Login Form */}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                Email Address
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-3 text-gray-500 w-4 h-4" />
                 <input
                   type="email"
-                  placeholder="you@company.com"
-                  className="w-full p-4 rounded-xl bg-[#0f172a] text-white border border-gray-700 focus:border-purple-500 focus:outline-none transition"
+                  required
+                  placeholder="name@company.com"
+                  className="w-full bg-[#0b1120] border border-gray-700/70 focus:border-purple-500 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none transition"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required
                 />
               </div>
+            </div>
 
-              <div>
-                <label className="block text-sm text-gray-400 mb-2">Password</label>
+            <div>
+              <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-3 text-gray-500 w-4 h-4" />
                 <input
                   type="password"
-                  placeholder="Enter your password"
-                  className="w-full p-4 rounded-xl bg-[#0f172a] text-white border border-gray-700 focus:border-purple-500 focus:outline-none transition"
+                  required
+                  placeholder="••••••••"
+                  className="w-full bg-[#0b1120] border border-gray-700/70 focus:border-purple-500 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white placeholder-gray-500 focus:outline-none transition"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
                 />
               </div>
+            </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full py-4 rounded-xl font-semibold transition-all ${
-                  selectedRole === "admin"
-                    ? "bg-purple-600 hover:bg-purple-700"
-                    : "bg-blue-600 hover:bg-blue-700"
-                } text-white disabled:opacity-70`}
-              >
-                {loading ? "Signing in..." : "Sign In"}
-              </button>
-            </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full mt-2 py-3 px-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-sm rounded-xl shadow-lg shadow-purple-600/25 flex items-center justify-center gap-2 transition disabled:opacity-60 cursor-pointer"
+            >
+              {loading ? (
+                <span className="flex items-center gap-2">
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Signing In...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  Sign In <ArrowRight size={16} />
+                </span>
+              )}
+            </button>
+          </form>
 
-            <p className="text-center text-gray-400 text-sm mt-6">
-              No account?{" "}
-              <span
-                onClick={() => navigate("/register")}
-                className="text-purple-400 cursor-pointer hover:text-purple-300"
-              >
-                Register
-              </span>
-            </p>
+          {/* Footer Note */}
+          <div className="mt-6 pt-5 border-t border-gray-800/60 text-center text-xs text-gray-400">
+            Don't have an account?{" "}
+            <Link to="/register" className="text-purple-400 font-semibold hover:text-purple-300 transition">
+              Create account
+            </Link>
           </div>
+
         </motion.div>
-      )}
-    </div>
+      </div>
+    </Layout>
   );
 };
 

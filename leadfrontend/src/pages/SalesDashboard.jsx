@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import api from "../api/leadApi";
 import { useAuth } from "../context/AuthContext";
+import Layout from "../components/Layout";
 import { LogOut, Search, Filter, Eye, MessageSquare, CheckCircle } from "lucide-react";
 
 const SalesDashboard = () => {
@@ -247,21 +248,19 @@ const [followUpsLoading, setFollowUpsLoading] = useState(false);
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0f172a] via-[#1e2937] to-[#0f172a] text-white">
-      {/* Header */}
-      <div className="bg-[#1e2937]/50 border-b border-gray-800/50 sticky top-0 z-40 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">My Leads Dashboard</h1>
-            <p className="text-gray-400 text-sm mt-1">Welcome, {currentUserName || "Sales Executive"}</p>
+    <Layout>
+      {/* Page Header */}
+      <div className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl font-extrabold text-white tracking-tight my-0">Sales Workspace</h1>
+            <span className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold rounded-full">
+              My Assigned Pipeline
+            </span>
           </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600/20 hover:bg-red-600/30 border border-red-600/50 rounded-xl transition"
-          >
-            <LogOut size={18} />
-            Logout
-          </button>
+          <p className="text-gray-400 text-sm mt-1">
+            Welcome back, <span className="text-white font-medium">{currentUserName || "Sales Executive"}</span>. Track client conversations and manage follow-ups.
+          </p>
         </div>
       </div>
 
@@ -632,7 +631,7 @@ const [followUpsLoading, setFollowUpsLoading] = useState(false);
     </motion.div>
   </div>
 )}
-    </div>
+    </Layout>
   );
 };
 
