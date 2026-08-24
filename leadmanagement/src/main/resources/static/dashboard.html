@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+</head>
+<body>
+
+<h2>Leads Dashboard</h2>
+
+<button onclick="loadLeads()">Load Leads</button>
+
+<div id="leads"></div>
+
+<script>
+function loadLeads() {
+    const token = localStorage.getItem("auth");
+
+    fetch("http://localhost:8080/leads", {
+        headers: {
+            "Authorization": "Basic " + token
+        }
+    })
+    .then(res => {
+        if (res.status === 401) {
+            alert("Unauthorized!");
+            return;
+        }
+        return res.json();
+    })
+    .then(data => {
+        let output = "";
+        data.forEach(lead => {
+            output += `<p>${lead.name} - ${lead.status}</p>`;
+        });
+        document.getElementById("leads").innerHTML = output;
+    });
+}
+</script>
+
+</body>
+</html>
