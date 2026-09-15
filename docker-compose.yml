@@ -1,3 +1,74 @@
+#services:
+#
+#  mysql:
+#    image: mysql:8.0
+#    container_name: lead-management-mysql
+#
+#    environment:
+#      MYSQL_ROOT_PASSWORD: your_password
+#      MYSQL_DATABASE: lead_management
+#
+#    volumes:
+#      - mysql_data:/var/lib/mysql
+#
+#    networks:
+#      - lead-network
+#
+#    healthcheck:
+#      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pyour_password"]
+#      interval: 10s
+#      timeout: 5s
+#      retries: 5
+#      start_period: 30s
+#
+#
+#  backend:
+#    build: ./leadmanagement
+#    container_name: lead-management-app
+#
+#    ports:
+#      - "8081:8081"
+#
+#    environment:
+#      DB_USERNAME: root
+#      DB_PASSWORD: your_password
+#
+#    depends_on:
+#      mysql:
+#        condition: service_healthy
+#
+#    networks:
+#      - lead-network
+#
+#
+#  frontend:
+#    build:
+#      context: ./leadfrontend
+#      args:
+#        VITE_API_URL: http://localhost:8081
+#
+#    container_name: lead-management-frontend
+#
+#    ports:
+#      - "80:80"
+#
+#    depends_on:
+#      - backend
+#
+#    networks:
+#      - lead-network
+#
+#
+#volumes:
+#  mysql_data:
+#
+#
+#networks:
+#  lead-network:
+
+
+version: '3.8'
+
 services:
 
   mysql:
@@ -23,7 +94,7 @@ services:
 
 
   backend:
-    build: ./leadmanagement
+    image: nidhimodi28/lead-management-backend:latest
     container_name: lead-management-app
 
     ports:
@@ -32,6 +103,7 @@ services:
     environment:
       DB_USERNAME: root
       DB_PASSWORD: your_password
+      JWT_SECRET: bXktc3VwZXItc2VjcmV0LWtleS1teS1zdXBlci1zZWNyZXQta2V5LW11c3QtYmUtbG9uZw==
 
     depends_on:
       mysql:
@@ -42,15 +114,14 @@ services:
 
 
   frontend:
-    build:
-      context: ./leadfrontend
-      args:
-        VITE_API_URL: http://localhost:8081
-
+    image: nidhimodi28/lead-management-frontend:latest
     container_name: lead-management-frontend
 
     ports:
       - "80:80"
+
+    environment:
+      VITE_API_URL: http://your-ec2-public-ip:8081
 
     depends_on:
       - backend
