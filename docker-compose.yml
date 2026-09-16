@@ -79,6 +79,9 @@ services:
       MYSQL_ROOT_PASSWORD: your_password
       MYSQL_DATABASE: lead_management
 
+    ports:
+      - "3306:3306"
+
     volumes:
       - mysql_data:/var/lib/mysql
 

@@ -16,12 +16,16 @@ public class Lead {
 	private Integer id;
 	
 	private String name;
+	
+	@Column(unique = true)
 	private String email;
 	private String phone;
 	private String source;
 	
 	@Enumerated(EnumType.STRING)
 	private LeadStatus status;
+	
+	private String lossReason;
 	
 	 private LocalDateTime createdAt;
 	 private LocalDateTime updatedAt;
@@ -34,7 +38,7 @@ public class Lead {
 	 @OneToMany(mappedBy = "lead")
 	 @JsonManagedReference
 	 private List<FollowUps> followUps;
-	  
+
 	 public Integer getId() {
 		 return id;
 	 }
@@ -70,6 +74,12 @@ public class Lead {
 	 }
 	 public void setStatus(LeadStatus status) {
 		 this.status = status;
+	 }
+	 public String getLossReason() {
+		 return lossReason;
+	 }
+	 public void setLossReason(String lossReason) {
+		 this.lossReason = lossReason;
 	 }
 	 public LocalDateTime getCreatedAt() {
 		 return createdAt;

@@ -1,5 +1,5 @@
 package com.project.leadmanagement.service;
-
+import com.project.leadmanagement.entity.UserStatus;
 import java.util.List;
 
 import com.project.leadmanagement.entity.Role;
@@ -14,4 +14,5 @@ public interface UsersService {
 	Users findByEmail(String email);
 	void save(Users user);
 	Role getRoleById(Long roleId);
+	Users updateUserStatus(int id, UserStatus status);
 }

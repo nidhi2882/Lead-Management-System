@@ -1,5 +1,5 @@
 package com.project.leadmanagement.service;
-
+import com.project.leadmanagement.entity.UserStatus;
 import java.util.List;
 
 
@@ -99,4 +99,16 @@ public class UserServiceImpl implements UsersService{
 		 return roleRepository.findById(roleId)
 		            .orElseThrow(() -> new RuntimeException("Role not found"));
 	 }
+
+	@Override
+	@Transactional
+	public Users updateUserStatus(int id, UserStatus status) {
+
+		Users user = userRepository.findById(id)
+				.orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+		user.setStatus(status);
+
+		return userRepository.save(user);
+	}
 }

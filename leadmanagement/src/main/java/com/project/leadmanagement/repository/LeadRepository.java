@@ -37,4 +37,10 @@ public interface LeadRepository extends JpaRepository<Lead, Integer> {
 
 	@EntityGraph(attributePaths = {"assignedUser"})
 	List<Lead> findByAssignedUserIsNull();
+
+	long countByStatus(LeadStatus status);
+
+	long countByAssignedUserId(int userId);
+
+	long countByAssignedUserIdAndStatus(int userId, LeadStatus status);
 }

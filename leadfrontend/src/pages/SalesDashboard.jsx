@@ -29,6 +29,11 @@ const [followUpsLoading, setFollowUpsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Status Modal Extended States
+  const [targetStatus, setTargetStatus] = useState("");
+  const [lossCategory, setLossCategory] = useState("Price / Budget");
+  const [lossNotes, setLossNotes] = useState("");
+
   // Follow-up Form
   const [followUpForm, setFollowUpForm] = useState({
     notes: "",
@@ -199,14 +204,39 @@ const [followUpsLoading, setFollowUpsLoading] = useState(false);
 
   // ==================== STATUS HANDLERS ====================
 
-  const handleUpdateStatus = async (leadId, newStatus) => {
+  const getAvailableStatuses = (currentStatus) => {
+    const statusUpper = (currentStatus || "NEW").toUpperCase();
+    switch (statusUpper) {
+      case "NEW":
+        return ["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "LOST"];
+      case "CONTACTED":
+        return ["CONTACTED", "QUALIFIED", "CONVERTED", "LOST"];
+      case "QUALIFIED":
+        return ["QUALIFIED", "CONVERTED", "LOST"];
+      case "CONVERTED":
+        return ["CONVERTED", "LOST"];
+      case "LOST":
+        return ["LOST", "CONTACTED", "NEW"];
+      default:
+        return ["NEW", "CONTACTED", "QUALIFIED", "CONVERTED", "LOST"];
+    }
+  };
+
+  const handleUpdateStatus = async (leadId, newStatus, reason = "") => {
     try {
-      await api.patch(`/leads/${leadId}`, {
-        status: newStatus,
-      });
+      setError("");
+      const payload = { status: newStatus };
+      if (newStatus === "LOST" && reason) {
+        payload.lossReason = reason;
+      }
+
+      await api.patch(`/leads/${leadId}`, payload);
 
       setSuccess(`Status updated to ${newStatus}!`);
       setShowStatusModal(false);
+      setTargetStatus("");
+      setLossCategory("Price / Budget");
+      setLossNotes("");
       fetchLeads();
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -374,6 +404,8 @@ const [followUpsLoading, setFollowUpsLoading] = useState(false);
             <option value="new">New</option>
             <option value="contacted">Contacted</option>
             <option value="qualified">Qualified</option>
+            <option value="converted">Converted</option>
+            <option value="lost">Lost</option>
           </select>
         </div>
 
@@ -415,12 +447,16 @@ const [followUpsLoading, setFollowUpsLoading] = useState(false);
                       <td className="px-6 py-4 text-gray-400">{lead.source || "-"}</td>
                       <td className="px-6 py-4">
                         <span
-                          className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          className={`px-3 py-1 rounded-full text-xs font-semibold ${
                             (lead.status || "NEW").toUpperCase() === "NEW"
-                              ? "bg-yellow-500/20 text-yellow-400"
+                              ? "bg-yellow-500/20 text-yellow-400 border border-yellow-500/30"
                               : (lead.status || "NEW").toUpperCase() === "CONTACTED"
-                              ? "bg-blue-500/20 text-blue-400"
-                              : "bg-green-500/20 text-green-400"
+                              ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                              : (lead.status || "NEW").toUpperCase() === "QUALIFIED"
+                              ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
+                              : (lead.status || "NEW").toUpperCase() === "CONVERTED"
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                              : "bg-rose-500/20 text-rose-400 border border-rose-500/30"
                           }`}
                         >
                           {(lead.status || "NEW").toUpperCase()}
@@ -501,6 +537,13 @@ const [followUpsLoading, setFollowUpsLoading] = useState(false);
                 </span>
               </div>
 
+              {selectedLead.lossReason && (
+                <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4">
+                  <p className="text-xs text-rose-400 font-semibold uppercase tracking-wider mb-1">Reason for Loss</p>
+                  <p className="text-rose-200 text-sm">{selectedLead.lossReason}</p>
+                </div>
+              )}
+
               <div className="bg-slate-900 rounded-2xl p-4 border border-slate-700">
   <p className="text-sm text-gray-400 mb-3">Follow-ups</p>
 
@@ -543,32 +586,120 @@ const [followUpsLoading, setFollowUpsLoading] = useState(false);
           <motion.div
             initial={{ scale: 0.95 }}
             animate={{ scale: 1 }}
-            className="bg-slate-800 w-full max-w-md rounded-3xl p-8"
+            className="bg-slate-800 w-full max-w-md rounded-3xl p-8 border border-slate-700"
           >
-            <h2 className="text-2xl font-semibold mb-6 text-white">Update Lead Status</h2>
+            <h2 className="text-2xl font-semibold mb-2 text-white">Update Lead Status</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              Current Status: <span className="font-semibold text-blue-400">{(selectedLead?.status || "NEW").toUpperCase()}</span>
+            </p>
 
-            <div className="space-y-3 mb-6">
-              {["NEW", "CONTACTED", "QUALIFIED"].map((status) => (
+            {error && (
+              <div className="bg-rose-500/10 border border-rose-500/30 text-rose-400 p-3 rounded-xl mb-4 text-sm">
+                {error}
+              </div>
+            )}
+
+            {targetStatus === "LOST" ? (
+              /* Loss Reason Sub-Form */
+              <div className="space-y-4">
+                <div className="bg-rose-500/10 border border-rose-500/30 p-3 rounded-xl text-xs text-rose-300">
+                  ⚠️ Marking a lead as <strong>LOST</strong> requires documenting a reason for loss.
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+                  <select
+                    value={lossCategory}
+                    onChange={(e) => setLossCategory(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:border-rose-500 focus:outline-none"
+                  >
+                    <option value="Price / Budget">Price / Budget</option>
+                    <option value="Chose Competitor">Chose Competitor</option>
+                    <option value="Not Interested / Bad Fit">Not Interested / Bad Fit</option>
+                    <option value="Unresponsive / Ghosted">Unresponsive / Ghosted</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Additional Notes (Optional)</label>
+                  <textarea
+                    rows={3}
+                    placeholder="Details about why lead was lost..."
+                    value={lossNotes}
+                    onChange={(e) => setLossNotes(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-white focus:border-rose-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setTargetStatus("")}
+                    className="w-1/2 py-3 border border-slate-700 rounded-xl text-gray-300 hover:bg-white/5 transition font-medium"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const fullReason = lossCategory + (lossNotes.trim() ? ` - ${lossNotes.trim()}` : "");
+                      handleUpdateStatus(selectedLeadId, "LOST", fullReason);
+                    }}
+                    className="w-1/2 py-3 bg-rose-600 hover:bg-rose-700 rounded-xl text-white font-medium transition"
+                  >
+                    Confirm Lost
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Status Selection Buttons */
+              <div className="space-y-3 mb-6">
+                {getAvailableStatuses(selectedLead?.status).map((status) => {
+                  const isCurrent = (selectedLead?.status || "NEW").toUpperCase() === status;
+                  return (
+                    <button
+                      key={status}
+                      disabled={isCurrent}
+                      onClick={() => {
+                        if (status === "LOST") {
+                          setTargetStatus("LOST");
+                        } else {
+                          handleUpdateStatus(selectedLeadId, status);
+                        }
+                      }}
+                      className={`w-full px-4 py-3 rounded-xl font-medium transition text-left flex items-center justify-between ${
+                        isCurrent
+                          ? "bg-slate-700/50 text-gray-500 cursor-not-allowed border border-slate-700"
+                          : "bg-white/5 hover:bg-white/10 text-gray-200 hover:text-white"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2">
+                        {status === "NEW" && "🆕"}
+                        {status === "CONTACTED" && "📞"}
+                        {status === "QUALIFIED" && "✅"}
+                        {status === "CONVERTED" && "🎉"}
+                        {status === "LOST" && "❌"}
+                        {status}
+                      </span>
+                      {isCurrent && <span className="text-xs bg-slate-600 text-gray-300 px-2 py-0.5 rounded-md">Current</span>}
+                    </button>
+                  );
+                })}
+
                 <button
-                  key={status}
-                  onClick={() => handleUpdateStatus(selectedLeadId, status)}
-                  className="w-full px-4 py-3 rounded-xl font-medium transition text-left bg-white/5 hover:bg-white/10 text-gray-300"
+                  type="button"
+                  onClick={() => {
+                    setShowStatusModal(false);
+                    setTargetStatus("");
+                    setError("");
+                  }}
+                  className="w-full mt-4 py-3 border border-slate-700 rounded-xl hover:bg-white/5 font-medium transition text-white"
                 >
-                  {status === "NEW" && "🆕"} {status === "CONTACTED" && "📞"} {status === "QUALIFIED" && "✅"} {status}
+                  Cancel
                 </button>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                setShowStatusModal(false);
-                setError("");
-              }}
-              className="w-full py-3 border border-slate-700 rounded-xl hover:bg-white/5 font-medium transition text-white"
-            >
-              Cancel
-            </button>
+              </div>
+            )}
           </motion.div>
         </div>
       )}

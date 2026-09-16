@@ -57,4 +57,13 @@ export const deleteLead = (id) => api.delete(`/leads/${id}`);
 export const assignLead = (leadId, userId) =>
   api.put(`/leads/${leadId}/assign/${userId}`);
 
+// =====================
+// 🔹 ANALYTICS APIs
+// =====================
+export const getAnalyticsOverview = () => api.get("/analytics/overview");
+export const getLeadStatusAnalytics = () => api.get("/analytics/leads-by-status");
+export const getSalesPerformanceAnalytics = () => api.get("/analytics/sales-performance");
+export const getFollowUpAnalytics = () => api.get("/analytics/followups");
+export const getFullAnalyticsReport = () => api.get("/analytics/full-report");
+
 export default api;

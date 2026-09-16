@@ -54,6 +54,7 @@ public class SecurityConfig {
 
                         .requestMatchers("/roles/**").hasRole("ADMIN")
                         .requestMatchers("/users/**").hasRole("ADMIN")
+                        .requestMatchers("/analytics/**").hasRole("ADMIN")
                         .requestMatchers(
                                 "/leads/*/assign/**",
                                 "/leads/auto-assign"

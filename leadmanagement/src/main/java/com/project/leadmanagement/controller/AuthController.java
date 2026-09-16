@@ -1,5 +1,5 @@
 package com.project.leadmanagement.controller;
-
+import com.project.leadmanagement.entity.UserStatus;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -13,19 +13,21 @@ import com.project.leadmanagement.entity.Users;
 import com.project.leadmanagement.service.UsersService;
 import com.project.leadmanagement.security.JwtUtil;
 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.Map;
 
 @CrossOrigin(origins = "http://localhost:5173")
 @RestController
 @RequestMapping("/auth")
-public class AuthController {	
+public class AuthController {
 
     @Autowired
     private JwtUtil jwtUtil;
 
     @Autowired
     private UsersService userService;
-    
+
     @Autowired
     private PasswordEncoder passwordEncoder;
 
@@ -34,10 +36,29 @@ public class AuthController {
 
         Users user = userService.findByEmail(request.getEmail());
 
-        if (user != null 
-        	    && passwordEncoder.matches(request.getPassword(), user.getPassword())
-        	    && user.getAssignedRole() != null) {
+        if (user != null
+                && passwordEncoder.matches(request.getPassword(), user.getPassword())
+                && user.getAssignedRole() != null) {
 
+            // User has registered but is waiting for admin approval
+            if (user.getStatus() == UserStatus.PENDING) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                                "message",
+                                "Your account is pending administrator approval. Please contact your system administrator."
+                        ));
+            }
+
+            // Admin has rejected the registration
+            if (user.getStatus() == UserStatus.REJECTED) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                                "message",
+                                "Your account registration request was rejected by an administrator."
+                        ));
+            }
+
+            // Only APPROVED users can receive a JWT
             String role = user.getAssignedRole().getName();
             String token = jwtUtil.generateToken(user.getEmail(), role);
 
@@ -52,7 +73,8 @@ public class AuthController {
             return ResponseEntity.ok(response);
         }
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", "Invalid email or password"));
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of("message", "Invalid email or password"));
     }
 
     @PostMapping("/register")
@@ -68,12 +90,23 @@ public class AuthController {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
 
-        // Default role: Sales (roleId = 2) if not specified or roleId = 2
-        Long targetRoleId = (request.getRoleId() != null) ? request.getRoleId() : 2L;
+        // Security Restriction: Creating additional Admin accounts is strictly forbidden. All new accounts must be Sales Executives (roleId = 2).
+        if (request.getRoleId() != null && request.getRoleId() == 1L) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Creating additional Administrator accounts is not allowed. Only Sales Executives can be created."));
+        }
+
+        Long targetRoleId = 2L; // Always Sales Executive
         user.setAssignedRole(userService.getRoleById(targetRoleId));
+
+        // New self-registered users must wait for admin approval
+        user.setStatus(UserStatus.PENDING);
 
         userService.save(user);
 
-        return ResponseEntity.ok(Map.of("message", "User registered successfully"));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(Map.of(
+                        "message",
+                        "Registration successful. Your account is pending administrator approval."
+                ));
     }
 }

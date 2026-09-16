@@ -5,6 +5,8 @@ import java.security.Principal;
 import java.time.LocalDateTime;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 @Entity
 @Table(name="users", indexes = {
     @Index(name = "idx_user_email", columnList = "email")
@@ -30,7 +32,9 @@ public class Users {
 	@ManyToOne
 	@JoinColumn(name="role_id")
 	private Role assignedRole;
-
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private UserStatus status = UserStatus.PENDING;
 	public Integer getId() {
 		return id;
 	}
@@ -80,7 +84,7 @@ public class Users {
 	}
 
 	public Users(Integer id, String name, String email, String password, LocalDateTime createdAt,
-			Role assignedRole) {
+	             Role assignedRole, UserStatus status) {
 		super();
 		this.id = id;
 		this.name = name;
@@ -88,11 +92,18 @@ public class Users {
 		this.password = password;
 		this.createdAt = createdAt;
 		this.assignedRole = assignedRole;
+		this.status = status;
 	}
 	public Users() {}
 	@PrePersist
 	public void prePersist() {
 	    this.createdAt = LocalDateTime.now();
 	}
+	public UserStatus getStatus() {
+		return status;
+	}
 
+	public void setStatus(UserStatus status) {
+		this.status = status;
+	}
 }

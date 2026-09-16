@@ -33,9 +33,13 @@ public class LeadServiceImpl implements LeadService {
 	@Override
 	public Lead createLead(Lead lead, boolean autoAssign) {
 
+	    if (lead.getEmail() != null && leadRepository.findByEmail(lead.getEmail().trim()).isPresent()) {
+	        throw new IllegalArgumentException("A lead with email '" + lead.getEmail() + "' already exists.");
+	    }
+
 	    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 
-	    boolean isAdmin = auth.getAuthorities().stream()
+	    boolean isAdmin = auth != null && auth.getAuthorities().stream()
 	        .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
 	    if (autoAssign && !isAdmin) {
@@ -73,6 +77,12 @@ public class LeadServiceImpl implements LeadService {
 	 public Lead updateLead(Lead lead, int id) {
 	     Lead existing = leadRepository.findById(id)
 	     		.orElseThrow(() -> new ResourceNotFoundException("Lead not found"));
+
+	     if (lead.getEmail() != null && !lead.getEmail().equalsIgnoreCase(existing.getEmail())
+	             && leadRepository.findByEmail(lead.getEmail().trim()).isPresent()) {
+	         throw new IllegalArgumentException("A lead with email '" + lead.getEmail() + "' already exists.");
+	     }
+
 	     existing.setName(lead.getName());
 	     existing.setEmail(lead.getEmail());
 	     existing.setPhone(lead.getPhone());
@@ -102,11 +112,30 @@ public class LeadServiceImpl implements LeadService {
 	     lead.setAssignedUser(user);
 	     return leadRepository.save(lead);
 	 }
+	 private static final Map<LeadStatus, Set<LeadStatus>> ALLOWED_TRANSITIONS = Map.of(
+	     LeadStatus.NEW, Set.of(LeadStatus.NEW, LeadStatus.CONTACTED, LeadStatus.QUALIFIED, LeadStatus.CONVERTED, LeadStatus.LOST),
+	     LeadStatus.CONTACTED, Set.of(LeadStatus.CONTACTED, LeadStatus.QUALIFIED, LeadStatus.CONVERTED, LeadStatus.LOST),
+	     LeadStatus.QUALIFIED, Set.of(LeadStatus.QUALIFIED, LeadStatus.CONVERTED, LeadStatus.LOST),
+	     LeadStatus.CONVERTED, Set.of(LeadStatus.CONVERTED, LeadStatus.LOST),
+	     LeadStatus.LOST, Set.of(LeadStatus.LOST, LeadStatus.CONTACTED, LeadStatus.NEW)
+	 );
+
+	 private void validateStatusTransition(LeadStatus currentStatus, LeadStatus targetStatus) {
+	     if (currentStatus != null && targetStatus != null && currentStatus != targetStatus) {
+	         Set<LeadStatus> allowed = ALLOWED_TRANSITIONS.getOrDefault(currentStatus, Set.of());
+	         if (!allowed.contains(targetStatus)) {
+	             throw new IllegalArgumentException("Cannot revert lead status from " + currentStatus + " to " + targetStatus + ". Status progression must move forward.");
+	         }
+	     }
+	 }
+
 	 @Override
 	 @Transactional
 	 public Lead updateStatus(int id, String status) {
 	     Lead lead = findById(id);
-	     lead.setStatus(LeadStatus.valueOf(status.toUpperCase()));
+	     LeadStatus targetStatus = LeadStatus.valueOf(status.toUpperCase());
+	     validateStatusTransition(lead.getStatus(), targetStatus);
+	     lead.setStatus(targetStatus);
 	     return leadRepository.save(lead);
 	 }
 	 @Override
@@ -151,7 +180,12 @@ public class LeadServiceImpl implements LeadService {
 	                 lead.setName((String) value);
 	                 break;
 	             case "email":
-	                 lead.setEmail((String) value);
+	                 String newEmail = (String) value;
+	                 if (newEmail != null && !newEmail.equalsIgnoreCase(lead.getEmail())
+	                         && leadRepository.findByEmail(newEmail.trim()).isPresent()) {
+	                     throw new IllegalArgumentException("A lead with email '" + newEmail + "' already exists.");
+	                 }
+	                 lead.setEmail(newEmail);
 	                 break;
 	             case "phone":
 	                 lead.setPhone((String) value);
@@ -161,7 +195,14 @@ public class LeadServiceImpl implements LeadService {
 	                 break;
 	             case "status":
 	                 if (value != null) {
-	                     lead.setStatus(LeadStatus.valueOf(((String) value).toUpperCase()));
+	                     LeadStatus targetStatus = LeadStatus.valueOf(((String) value).toUpperCase());
+	                     validateStatusTransition(lead.getStatus(), targetStatus);
+	                     lead.setStatus(targetStatus);
+	                 }
+	                 break;
+	             case "lossReason":
+	                 if (value != null) {
+	                     lead.setLossReason((String) value);
 	                 }
 	                 break;
 	             default:
